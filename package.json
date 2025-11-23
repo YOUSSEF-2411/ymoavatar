@@ -1,14 +1,33 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "ymo-avatar",
+  "version": "1.0.0",
+  "description": "WebAR Platform for Interactive AR Experiences - Upload images, link videos/3D content, and bring them to life with Augmented Reality",
+  "author": "YMO Avatar Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/ymoavatar.git"
+  },
+  "keywords": [
+    "ar",
+    "webAR",
+    "augmented-reality",
+    "mindar",
+    "three.js",
+    "react",
+    "vite",
+    "supabase"
+  ],
   "private": true,
-  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:vercel": "vercel --prod",
+    "deploy:netlify": "netlify deploy --prod"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -10,7 +10,7 @@ const Hero = () => {
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10" />
-      
+
       {/* Animated glow effect */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl animate-pulse delay-1000" />
@@ -24,16 +24,16 @@ const Hero = () => {
                 WebAR Platform
               </span>
             </div>
-            
+
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
               Bring Static Images to Life with{" "}
               <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                 AR Avatars
               </span>
             </h1>
-            
+
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl">
-              Upload any image, link it to a video or 3D avatar, and watch it come alive through your camera. 
+              Upload any image, link it to a video or 3D avatar, and watch it come alive through your camera.
               No app downloads required - experience AR directly in your browser.
             </p>
 
@@ -46,15 +46,15 @@ const Hero = () => {
                 Create AR Avatar
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              
+
               <Button
                 size="lg"
                 variant="outline"
                 className="text-lg px-8 py-6 border-2"
-                onClick={() => navigate("/viewer")}
+                onClick={() => navigate("/scan")}
               >
                 <Play className="mr-2 h-5 w-5" />
-                Try Demo
+                Try AR Scanner
               </Button>
             </div>
           </div>
@@ -69,7 +69,7 @@ const Hero = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background/50 to-transparent" />
             </div>
-            
+
             {/* Floating elements */}
             <div className="absolute -top-4 -right-4 w-24 h-24 bg-primary/20 rounded-full blur-2xl animate-pulse" />
             <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-secondary/20 rounded-full blur-2xl animate-pulse delay-500" />

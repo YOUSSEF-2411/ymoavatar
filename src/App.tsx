@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Create from "./pages/Create";
 import Viewer from "./pages/Viewer";
+import Scan from "./pages/Scan";
 import Account from "./pages/Account";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/create" element={<Create />} />
+          <Route path="/scan" element={<Scan />} />
           <Route path="/viewer" element={<Viewer />} />
           <Route path="/viewer/:id" element={<Viewer />} />
           <Route path="/account" element={<Account />} />
