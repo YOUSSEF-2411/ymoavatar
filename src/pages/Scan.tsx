@@ -22,7 +22,7 @@ const Scan = () => {
       const { data, error } = await supabase
         .from("ar_projects")
         .select("*")
-        .not("target_file_url", "is", null) // Only projects with target files
+        .eq("is_public", true)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -132,11 +132,20 @@ const Scan = () => {
                         className="w-full h-48 object-cover"
                       />
                     )}
-                    <div className="absolute top-2 right-2">
-                      <div className="bg-green-500/90 text-white text-xs px-2 py-1 rounded-full">
-                        Ready
+                    {project.target_file_url && (
+                      <div className="absolute top-2 right-2">
+                        <div className="bg-green-500/90 text-white text-xs px-2 py-1 rounded-full">
+                          Ready
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    {!project.target_file_url && (
+                      <div className="absolute top-2 right-2">
+                        <div className="bg-yellow-500/90 text-white text-xs px-2 py-1 rounded-full">
+                          Processing
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="p-4">
                     <h4 className="font-semibold text-lg mb-1">{project.name}</h4>
