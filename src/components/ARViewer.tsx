@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Camera, X, Info } from "lucide-react";
+import { MindARThree } from 'mind-ar/dist/mindar-image-three.prod.js';
+import * as THREE from 'three';
+
+// Extend window object to include THREE for MindAR
+if (typeof window !== 'undefined') {
+  (window as any).THREE = THREE;
+}
 
 interface ARViewerProps {
   markerUrl?: string;
@@ -18,25 +25,60 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
   const containerRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const mindARRef = useRef<any>(null);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
-    if (isARActive && targetFileUrl) {
-      startMindAR();
-    }
+    mountedRef.current = true;
+
+    const initAR = async () => {
+      if (isARActive && targetFileUrl) {
+        await startMindAR();
+      }
+    };
+
+    initAR();
+
     return () => {
+      mountedRef.current = false;
       stopAR();
     };
   }, [isARActive, targetFileUrl]);
 
   const startMindAR = async () => {
     try {
-      // Load MindAR library dynamically first
-      if (!(window as any).MINDAR) {
-        await loadMindARScript();
+      // 1. Check for Secure Context (HTTPS or localhost)
+      if (window.location.hostname !== 'localhost' && window.location.protocol !== 'https:') {
+        throw new Error("AR requires a secure connection (HTTPS).");
       }
 
-      const MindAR = (window as any).MINDAR.IMAGE;
-      const mindarThree = new MindAR.MindARThree({
+      // 2. Explicitly request camera permission
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Your browser does not support camera access.");
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'environment'
+          }
+        });
+        // Stop the stream immediately, we just needed to check permission
+        stream.getTracks().forEach(track => track.stop());
+      } catch (permError) {
+        console.error("Permission check failed:", permError);
+        if (permError instanceof Error) {
+            if (permError.name === 'NotAllowedError' || permError.name === 'PermissionDeniedError') {
+                throw new Error("Camera permission denied. Please allow camera access in your browser settings.");
+            } else if (permError.name === 'NotFoundError') {
+                throw new Error("No camera found on your device.");
+            }
+        }
+        throw permError;
+      }
+
+      if (!mountedRef.current) return;
+
+      const mindarThree = new MindARThree({
         container: containerRef.current,
         imageTargetSrc: targetFileUrl,
       });
@@ -54,10 +96,10 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
         video.playsInline = true;
         video.crossOrigin = "anonymous";
 
-        const texture = new (window as any).THREE.VideoTexture(video);
-        const geometry = new (window as any).THREE.PlaneGeometry(1, 0.5625);
-        const material = new (window as any).THREE.MeshBasicMaterial({ map: texture });
-        const plane = new (window as any).THREE.Mesh(geometry, material);
+        const texture = new THREE.VideoTexture(video);
+        const geometry = new THREE.PlaneGeometry(1, 0.5625);
+        const material = new THREE.MeshBasicMaterial({ map: texture });
+        const plane = new THREE.Mesh(geometry, material);
 
         const anchor = mindarThree.addAnchor(0);
         anchor.group.add(plane);
@@ -74,11 +116,11 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
           video.pause();
         };
       } else if (contentType === "image" && contentUrl) {
-        const loader = new (window as any).THREE.TextureLoader();
+        const loader = new THREE.TextureLoader();
         loader.load(contentUrl, (texture: any) => {
-          const geometry = new (window as any).THREE.PlaneGeometry(1, 1);
-          const material = new (window as any).THREE.MeshBasicMaterial({ map: texture });
-          const plane = new (window as any).THREE.Mesh(geometry, material);
+          const geometry = new THREE.PlaneGeometry(1, 1);
+          const material = new THREE.MeshBasicMaterial({ map: texture });
+          const plane = new THREE.Mesh(geometry, material);
 
           const anchor = mindarThree.addAnchor(0);
           anchor.group.add(plane);
@@ -107,33 +149,22 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
         renderer.render(scene, camera);
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error starting MindAR:", error);
-      setError("Failed to start AR. Please try again.");
+      let errorMessage = "Failed to start AR. Please try again.";
+
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        errorMessage = "Camera permission denied. Please allow camera access.";
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = "No camera found on your device.";
+      }
+
+      setError(errorMessage);
     }
   };
 
-  const loadMindARScript = (): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      // Load Three.js first
-      const threeScript = document.createElement("script");
-      threeScript.src = "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js";
-      threeScript.async = true;
-      
-      threeScript.onload = () => {
-        // Then load MindAR
-        const mindScript = document.createElement("script");
-        mindScript.src = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js";
-        mindScript.async = true;
-        mindScript.onload = () => resolve();
-        mindScript.onerror = reject;
-        document.head.appendChild(mindScript);
-      };
-      
-      threeScript.onerror = reject;
-      document.head.appendChild(threeScript);
-    });
-  };
 
   const stopAR = () => {
     if (mindARRef.current) {
