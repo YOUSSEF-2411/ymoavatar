@@ -13,11 +13,9 @@ interface ARViewerProps {
 
 const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl }: ARViewerProps) => {
   const [isARActive, setIsARActive] = useState(false);
-  const [showInfo, setShowInfo] = useState(true);
   const [isTracking, setIsTracking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const mindARRef = useRef<any>(null);
 
@@ -32,29 +30,11 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
 
   const startMindAR = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: 640, height: 480 },
-        audio: false,
-      });
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-        
-        // Wait for video to be ready
-        await new Promise((resolve) => {
-          if (videoRef.current) {
-            videoRef.current.onloadedmetadata = resolve;
-          }
-        });
-      }
-
-      // Load MindAR library dynamically
+      // Load MindAR library dynamically first
       if (!(window as any).MINDAR) {
         await loadMindARScript();
       }
 
-      // Initialize MindAR
       const MindAR = (window as any).MINDAR.IMAGE;
       const mindarThree = new MindAR.MindARThree({
         container: containerRef.current,
@@ -72,9 +52,10 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
         video.loop = true;
         video.muted = true;
         video.playsInline = true;
+        video.crossOrigin = "anonymous";
 
         const texture = new (window as any).THREE.VideoTexture(video);
-        const geometry = new (window as any).THREE.PlaneGeometry(1, 1);
+        const geometry = new (window as any).THREE.PlaneGeometry(1, 0.5625);
         const material = new (window as any).THREE.MeshBasicMaterial({ map: texture });
         const plane = new (window as any).THREE.Mesh(geometry, material);
 
@@ -82,14 +63,36 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
         anchor.group.add(plane);
 
         anchor.onTargetFound = () => {
+          console.log("Target found!");
           setIsTracking(true);
-          video.play();
+          video.play().catch(e => console.error("Video play error:", e));
         };
         
         anchor.onTargetLost = () => {
+          console.log("Target lost!");
           setIsTracking(false);
           video.pause();
         };
+      } else if (contentType === "image" && contentUrl) {
+        const loader = new (window as any).THREE.TextureLoader();
+        loader.load(contentUrl, (texture: any) => {
+          const geometry = new (window as any).THREE.PlaneGeometry(1, 1);
+          const material = new (window as any).THREE.MeshBasicMaterial({ map: texture });
+          const plane = new (window as any).THREE.Mesh(geometry, material);
+
+          const anchor = mindarThree.addAnchor(0);
+          anchor.group.add(plane);
+
+          anchor.onTargetFound = () => {
+            console.log("Target found!");
+            setIsTracking(true);
+          };
+          
+          anchor.onTargetLost = () => {
+            console.log("Target lost!");
+            setIsTracking(false);
+          };
+        });
       }
 
       // Increment view count
@@ -106,6 +109,7 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
 
     } catch (error) {
       console.error("Error starting MindAR:", error);
+      setError("Failed to start AR. Please try again.");
     }
   };
 
@@ -145,7 +149,6 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
 
   const handleStart = () => {
     setIsARActive(true);
-    setShowInfo(false);
   };
 
   const handleStop = () => {
@@ -158,14 +161,20 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
       <div className="h-full flex items-center justify-center px-4">
         <Card className="max-w-lg w-full p-8 text-center space-y-6">
           <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
-            <X className="h-10 w-10 text-destructive" />
+            <Info className="h-10 w-10 text-destructive" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">Target Not Ready</h1>
-            <p className="text-muted-foreground">
-              This AR experience is still being processed. Please try again later.
+            <h1 className="text-2xl md:text-3xl font-bold mb-2">Processing AR Target</h1>
+            <p className="text-muted-foreground mb-4">
+              The AR tracking file is being generated. This may take a few moments.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Please refresh the page in a few seconds to try again.
             </p>
           </div>
+          <Button onClick={() => window.location.reload()}>
+            Refresh Page
+          </Button>
         </Card>
       </div>
     );
@@ -180,39 +189,24 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
           </div>
 
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">MindAR Viewer</h1>
+            <h1 className="text-2xl md:text-3xl font-bold mb-2">AR Scanner Ready</h1>
             <p className="text-muted-foreground">
-              Point your camera at the trigger image to see AR content
+              Point your camera at the marker to view AR content
             </p>
           </div>
 
-          <div className="space-y-4">
-            <div className="bg-muted/50 rounded-lg p-4 text-left">
-              <h3 className="font-semibold mb-2 flex items-center gap-2">
-                <Info className="h-4 w-4" />
-                How to use:
-              </h3>
-              <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-                <li>Allow camera access when prompted</li>
-                <li>Point camera at the marker image</li>
-                <li>The AR content will appear automatically when detected!</li>
-                <li>Move away to hide the content</li>
-              </ol>
-            </div>
-
-            {markerUrl && (
-              <div className="rounded-lg overflow-hidden border border-border">
-                <img
-                  src={markerUrl}
-                  alt="AR Marker"
-                  className="w-full h-48 object-contain bg-muted/30"
-                />
-                <div className="bg-muted/50 p-2 text-xs text-center text-muted-foreground">
-                  Point your camera at this image
-                </div>
+          {markerUrl && (
+            <div className="rounded-lg overflow-hidden border border-border">
+              <img
+                src={markerUrl}
+                alt="AR Marker"
+                className="w-full h-48 object-contain bg-muted/30"
+              />
+              <div className="bg-muted/50 p-2 text-xs text-center text-muted-foreground">
+                Scan this image with your camera
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <Button
             size="lg"
@@ -220,7 +214,7 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
             onClick={handleStart}
           >
             <Camera className="mr-2 h-5 w-5" />
-            Start AR Experience
+            Start Camera
           </Button>
         </Card>
       </div>
@@ -229,22 +223,10 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
 
   return (
     <div className="relative h-full bg-black">
-      <div ref={containerRef} className="absolute inset-0">
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full"
-        />
-      </div>
+      <div ref={containerRef} className="absolute inset-0" />
 
       {/* Tracking indicator */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none z-10">
         <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-sm border ${
           isTracking 
             ? 'bg-green-500/20 border-green-500/30' 
@@ -253,14 +235,14 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
           <div className={`w-2 h-2 rounded-full animate-pulse ${
             isTracking ? 'bg-green-500' : 'bg-primary'
           }`} />
-          <span className="text-sm text-white">
-            {isTracking ? 'Target Locked!' : 'Scanning...'}
+          <span className="text-sm font-medium text-white">
+            {isTracking ? '✓ Target Detected!' : 'Scanning for marker...'}
           </span>
         </div>
       </div>
 
       {/* Controls */}
-      <div className="absolute top-4 right-4 pointer-events-auto">
+      <div className="absolute top-4 right-4 pointer-events-auto z-10">
         <Button
           variant="ghost"
           size="icon"
@@ -271,12 +253,11 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
         </Button>
       </div>
 
-      {showInfo && (
-        <div className="absolute bottom-24 left-4 right-4 pointer-events-auto">
-          <Card className="p-4 bg-black/70 backdrop-blur-md border-white/20 text-white">
-            <p className="text-sm">
-              <strong>Real AR Tracking:</strong> The content will appear automatically when you point at the marker!
-            </p>
+      {/* Error message */}
+      {error && (
+        <div className="absolute bottom-24 left-4 right-4 pointer-events-auto z-10">
+          <Card className="p-4 bg-red-500/20 backdrop-blur-md border-red-500/30 text-white">
+            <p className="text-sm">{error}</p>
           </Card>
         </div>
       )}
