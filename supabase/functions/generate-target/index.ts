@@ -27,7 +27,7 @@ serve(async (req) => {
     const base64Image = base64Encode(arrayBuffer);
     
     // Call MindAR compiler API
-    const compilerResponse = await fetch('https://ar-compiler.lovable.dev/compile', {
+    const compilerResponse = await fetch('https://ar-compiler.lovable.app/compile', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
