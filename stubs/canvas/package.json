@@ -1,0 +1,6 @@
+{
+  "name": "canvas",
+  "version": "2.11.2",
+  "description": "Stub for canvas to prevent build errors on Vercel",
+  "main": "index.js"
+}

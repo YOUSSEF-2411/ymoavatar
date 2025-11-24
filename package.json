@@ -29,6 +29,9 @@
     "deploy:vercel": "vercel --prod",
     "deploy:netlify": "netlify deploy --prod"
   },
+  "overrides": {
+    "canvas": "file:./stubs/canvas"
+  },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
