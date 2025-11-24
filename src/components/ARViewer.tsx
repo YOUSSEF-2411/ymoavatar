@@ -20,20 +20,62 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
   const mindARRef = useRef<any>(null);
 
   useEffect(() => {
-    if (isARActive && targetFileUrl) {
-      startMindAR();
-    }
+    let mounted = true;
+
+    const initAR = async () => {
+      if (isARActive && targetFileUrl) {
+        await startMindAR(mounted);
+      }
+    };
+
+    initAR();
+
     return () => {
+      mounted = false;
       stopAR();
     };
   }, [isARActive, targetFileUrl]);
 
-  const startMindAR = async () => {
+  const startMindAR = async (isMounted: boolean) => {
     try {
+      // 1. Check for Secure Context (HTTPS or localhost)
+      if (window.location.hostname !== 'localhost' && window.location.protocol !== 'https:') {
+        throw new Error("AR requires a secure connection (HTTPS).");
+      }
+
+      // 2. Explicitly request camera permission
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Your browser does not support camera access.");
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'environment'
+          }
+        });
+        // Stop the stream immediately, we just needed to check permission
+        stream.getTracks().forEach(track => track.stop());
+      } catch (permError) {
+        console.error("Permission check failed:", permError);
+        if (permError instanceof Error) {
+            if (permError.name === 'NotAllowedError' || permError.name === 'PermissionDeniedError') {
+                throw new Error("Camera permission denied. Please allow camera access in your browser settings.");
+            } else if (permError.name === 'NotFoundError') {
+                throw new Error("No camera found on your device.");
+            }
+        }
+        throw permError;
+      }
+
+      if (!isMounted) return;
+
       // Load MindAR library dynamically first
       if (!(window as any).MINDAR) {
         await loadMindARScript();
       }
+
+      if (!isMounted) return;
 
       const MindAR = (window as any).MINDAR.IMAGE;
       const mindarThree = new MindAR.MindARThree({
@@ -107,9 +149,19 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
         renderer.render(scene, camera);
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error starting MindAR:", error);
-      setError("Failed to start AR. Please try again.");
+      let errorMessage = "Failed to start AR. Please try again.";
+
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        errorMessage = "Camera permission denied. Please allow camera access.";
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = "No camera found on your device.";
+      }
+
+      setError(errorMessage);
     }
   };
 
