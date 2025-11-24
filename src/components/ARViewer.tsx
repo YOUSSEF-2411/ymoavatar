@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Camera, X, Info } from "lucide-react";
+import { MindARThree } from 'mind-ar/dist/mindar-image-three.prod.js';
+import * as THREE from 'three';
+
+// Extend window object to include THREE for MindAR
+if (typeof window !== 'undefined') {
+  (window as any).THREE = THREE;
+}
 
 interface ARViewerProps {
   markerUrl?: string;
@@ -71,24 +78,7 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
 
       if (!mountedRef.current) return;
 
-      // Load MindAR library dynamically first
-      if (!(window as any).MINDAR) {
-        await loadMindARScript();
-      }
-
-      if (!mountedRef.current) return;
-
-      if (!(window as any).MINDAR) {
-          throw new Error("MindAR failed to load properly. Please refresh and try again.");
-      }
-
-      // Initialize MindAR with proper error handling
-      const MindAR = (window as any).MINDAR.IMAGE;
-      if (!MindAR) {
-          throw new Error("MindAR Image module not found.");
-      }
-
-      const mindarThree = new MindAR.MindARThree({
+      const mindarThree = new MindARThree({
         container: containerRef.current,
         imageTargetSrc: targetFileUrl,
       });
@@ -105,12 +95,6 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
         video.muted = true;
         video.playsInline = true;
         video.crossOrigin = "anonymous";
-
-        // Ensure THREE is available
-        const THREE = (window as any).THREE;
-        if (!THREE) {
-             throw new Error("Three.js not loaded.");
-        }
 
         const texture = new THREE.VideoTexture(video);
         const geometry = new THREE.PlaneGeometry(1, 0.5625);
@@ -132,10 +116,6 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
           video.pause();
         };
       } else if (contentType === "image" && contentUrl) {
-        const THREE = (window as any).THREE;
-        if (!THREE) {
-             throw new Error("Three.js not loaded.");
-        }
         const loader = new THREE.TextureLoader();
         loader.load(contentUrl, (texture: any) => {
           const geometry = new THREE.PlaneGeometry(1, 1);
@@ -185,63 +165,6 @@ const ARViewer = ({ markerUrl, contentType, contentUrl, projectId, targetFileUrl
     }
   };
 
-  const loadMindARScript = (): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      // Check if scripts are already loaded
-      if ((window as any).MINDAR && (window as any).THREE) {
-        resolve();
-        return;
-      }
-
-      // Load Three.js first
-      const loadThree = () => {
-        return new Promise<void>((resolveThree, rejectThree) => {
-           if ((window as any).THREE) {
-             resolveThree();
-             return;
-           }
-           const threeScript = document.createElement("script");
-           threeScript.src = "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js";
-           threeScript.async = true;
-           threeScript.onload = () => {
-             resolveThree();
-           };
-           threeScript.onerror = rejectThree;
-           document.head.appendChild(threeScript);
-        });
-      };
-
-      loadThree()
-        .then(() => {
-          // Then load MindAR
-          const mindScript = document.createElement("script");
-          mindScript.src = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js";
-          mindScript.async = true;
-          mindScript.onload = () => {
-             // Verify that MINDAR is available
-             if (!(window as any).MINDAR) {
-                 // Retry a few times if needed, or fail
-                 let retries = 0;
-                 const checkMindAR = setInterval(() => {
-                     retries++;
-                     if ((window as any).MINDAR) {
-                         clearInterval(checkMindAR);
-                         resolve();
-                     } else if (retries > 10) {
-                         clearInterval(checkMindAR);
-                         reject(new Error("MindAR script loaded but global variable not found."));
-                     }
-                 }, 100);
-             } else {
-                 resolve();
-             }
-          };
-          mindScript.onerror = reject;
-          document.head.appendChild(mindScript);
-        })
-        .catch(reject);
-    });
-  };
 
   const stopAR = () => {
     if (mindARRef.current) {
