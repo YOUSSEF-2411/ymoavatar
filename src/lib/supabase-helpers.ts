@@ -44,6 +44,7 @@ export async function createARProject(project: {
     .insert({
       ...project,
       user_id: user.id,
+      is_public: true,
     })
     .select()
     .single();
