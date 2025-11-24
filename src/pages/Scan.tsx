@@ -19,11 +19,20 @@ const Scan = () => {
 
   const loadAllProjects = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+
+      let query = supabase
         .from("ar_projects")
         .select("*")
-        .eq("is_public", true)
         .order("created_at", { ascending: false });
+
+      if (user) {
+        query = query.or(`user_id.eq.${user.id},is_public.eq.true`);
+      } else {
+        query = query.eq("is_public", true);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setProjects(data || []);
