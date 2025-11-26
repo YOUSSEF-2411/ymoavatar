@@ -24,7 +24,8 @@ serve(async (req) => {
 
     // Convert image to base64 safely without stack overflow
     const arrayBuffer = await imageFile.arrayBuffer();
-    const base64Image = base64Encode(arrayBuffer);
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const base64Image = base64Encode(uint8Array);
     
     // Call MindAR compiler API
     const compilerResponse = await fetch('https://ar-compiler.lovable.app/compile', {
